@@ -1,28 +1,36 @@
-import { copyTemplateFile } from '../utils/fileUtils.ts';
 import { join, dirname } from '@std/path';
+import chalk from 'chalk';
+import { existsSync } from '@std/fs';
+import { copyTemplateFile } from '../utils/fileUtils.ts';
 import { ApplyConfigOptions } from '../types/applyConfigOptions.ts';
 
 export const applyTemplates = (options: ApplyConfigOptions): void => {
-    const templatesPath = join(dirname(import.meta.url), '../../templates');
+    let basePath: string;
 
-    const availableTemplates = Array.from(Deno.readDirSync(templatesPath)).reduce((acc: Record<string, string>, folder: Deno.DirEntry) => {
-        if (folder.isDirectory) {
-            const folderPath = join(templatesPath, folder.name);
-            const files = Array.from(Deno.readDirSync(folderPath));
-
-            files.forEach((file) => {
-                acc[folder.name] = join(folder.name, file.name); // eslint -> eslint/.eslintrc.json
-            });
+    if (Deno.execPath().endsWith(".exe")) {
+        basePath = dirname(Deno.execPath());
+    } else {
+        basePath = dirname(new URL(import.meta.url).pathname);
+        if (Deno.build.os === "windows" && basePath.startsWith("/")) {
+            basePath = basePath.slice(1); // Corrige caminhos no Windows
         }
-        return acc;
-    }, {});
+    }
 
-    // Aplicando os templates
+    const templatesPath = join(basePath, 'templates');
+    const templateMapPath = join(templatesPath, 'templateMap.json');
+
+    if (!existsSync(templateMapPath)) {
+        console.error(chalk.red('Arquivo templateMap.json não encontrado!'));
+        return;
+    }
+
+    const templateMap = JSON.parse(Deno.readTextFileSync(templateMapPath));
+
     Object.keys(options).forEach((key) => {
-        if (options[key] && availableTemplates[key]) {
-            copyTemplateFile(availableTemplates[key]);
+        if (options[key]) {
+            copyTemplateFile(key, templatesPath, templateMap);
         }
     });
 
-    console.log('Configurações aplicadas com sucesso!');
+    console.log(chalk.green('Configurações aplicadas com sucesso!'));
 };

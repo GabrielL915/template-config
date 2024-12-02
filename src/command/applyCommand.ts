@@ -7,5 +7,10 @@ export const applyCommand = new Command('apply')
     .option('--prettier', 'Aplica configurações do Prettier')
     .option('--editorconfig', 'Aplica configurações do EditorConfig')
     .action((options) => {
+        if (!Object.values(options).some((opt) => opt)) {
+            console.error("Nenhuma opção foi fornecida. Use --help para mais informações.");
+            Deno.exit(1);
+        }
         applyTemplates(options);
     });
+
